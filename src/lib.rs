@@ -8,23 +8,24 @@ use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
+#[derive(Debug)]
 pub struct SvnListParallel(LinkedList<SvnList>);
 
 pub trait ListParallel {
-    fn list_parallel(&self, path: &str) -> Result<SvnListParallel, SvnError>;
+    fn list_parallel(&self, path: &str) -> Arc<Mutex<SvnListParallel>>;
 }
 
 impl ListParallel for SvnCmd {
-    fn list_parallel(&self, path: &str) -> Result<SvnListParallel, SvnError> {
+    fn list_parallel(&self, path: &str) -> Arc<Mutex<SvnListParallel>> {
         let all_svn_list = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
-        task::block_on(async {
-            run_parallely(self.clone(), path.to_owned(), all_svn_list.clone())
-                .await
-                .unwrap();
-        });
+        {
+            task::block_on(async {
+                run_parallely(self.clone(), path.to_owned(), all_svn_list.clone())
+                    .await
+                    .unwrap();
+            });
+        }
         all_svn_list
-            .into_inner()
-            .map_err(|e| SvnError::Other(e.to_string()))
     }
 }
 

@@ -16,7 +16,7 @@ pub trait ListParallel {
 
 impl ListParallel for SvnCmd {
     fn list_parallel(&self, path: &str) -> Result<SvnListParallel, SvnError> {
-        let all_svn_list: AtomicList = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
+        let all_svn_list = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
         task::block_on(async {
             run_parallely(self.clone(), path.to_owned(), all_svn_list.clone())
                 .await

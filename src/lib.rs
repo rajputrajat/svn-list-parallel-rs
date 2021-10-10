@@ -30,16 +30,17 @@ pub struct ListEntryIterator<'a> {
 impl<'a> Iterator for ListEntryIterator<'a> {
     type Item = &'a ListEntry;
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
-            if let Some(inner) = outer.iter().nth(self.inner_index) {
-                self.inner_index += 1;
-                Some(inner)
+        loop {
+            if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
+                if let Some(inner) = outer.iter().nth(self.inner_index) {
+                    self.inner_index += 1;
+                    return Some(inner);
+                } else {
+                    self.outer_index += 1;
+                }
             } else {
-                self.outer_index += 1;
-                None
+                return None;
             }
-        } else {
-            None
         }
     }
 }

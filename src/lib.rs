@@ -1,6 +1,6 @@
 use async_recursion::async_recursion;
 use async_std::task;
-use log::info;
+use log::trace;
 use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
@@ -65,7 +65,7 @@ impl ListParallel for SvnCmd {
 #[async_recursion]
 async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Result<(), SvnError> {
     let svn_list = cmd.list(&path, false).await?;
-    info!("{:?}", svn_list);
+    trace!("{:?}", svn_list);
     let mut tasks = Vec::new();
     for item in svn_list.iter() {
         if item.kind == PathType::Dir {

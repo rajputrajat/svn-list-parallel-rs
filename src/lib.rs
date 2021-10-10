@@ -38,6 +38,7 @@ impl<'a> Iterator for ListEntryIterator<'a> {
                     return Some(inner);
                 } else {
                     self.outer_index += 1;
+                    self.inner_index = 0;
                 }
             } else {
                 return None;

@@ -56,10 +56,7 @@ impl ListParallel for SvnCmd {
         task::block_on(async {
             result = run_parallely(self.clone(), path.to_owned(), all_svn_list.clone()).await;
         });
-        match result {
-            Ok(_) => Ok(all_svn_list),
-            Err(e) => Err(e),
-        }
+        result.map(|_| all_svn_list)
     }
 }
 

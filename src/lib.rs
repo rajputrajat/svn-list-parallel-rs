@@ -14,7 +14,7 @@ pub struct SvnListParallel(LinkedList<SvnList>);
 impl SvnListParallel {
     pub fn iter(&self) -> ListEntryIterator {
         ListEntryIterator {
-            data: &self,
+            data: self,
             outer_index: 0,
             inner_index: 0,
         }
@@ -46,20 +46,20 @@ impl<'a> Iterator for ListEntryIterator<'a> {
 }
 
 pub trait ListParallel {
-    fn list_parallel(&self, path: &str) -> Arc<Mutex<SvnListParallel>>;
+    fn list_parallel(&self, path: &str) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>;
 }
 
 impl ListParallel for SvnCmd {
-    fn list_parallel(&self, path: &str) -> Arc<Mutex<SvnListParallel>> {
+    fn list_parallel(&self, path: &str) -> Result<Arc<Mutex<SvnListParallel>>, SvnError> {
         let all_svn_list = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
-        {
-            task::block_on(async {
-                run_parallely(self.clone(), path.to_owned(), all_svn_list.clone())
-                    .await
-                    .unwrap();
-            });
+        let mut result: Result<(), SvnError> = Ok(());
+        task::block_on(async {
+            result = run_parallely(self.clone(), path.to_owned(), all_svn_list.clone()).await;
+        });
+        match result {
+            Ok(_) => Ok(all_svn_list),
+            Err(e) => Err(e),
         }
-        all_svn_list
     }
 }
 
@@ -74,15 +74,12 @@ async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Resul
             let cmd = cmd.clone();
             let big_list = big_list.clone();
             tasks.push(task::spawn(async move {
-                match run_parallely(cmd, new_path, big_list).await {
-                    Ok(o) => o,
-                    Err(_) => {}
-                }
+                run_parallely(cmd, new_path, big_list).await
             }));
         }
     }
     for task in tasks {
-        task.await;
+        task.await?;
     }
     big_list.lock().unwrap().0.push_back(svn_list);
     Ok(())

@@ -32,8 +32,10 @@ impl<'a> Iterator for ListEntryIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
             if let Some(inner) = outer.iter().nth(self.inner_index) {
+                self.inner_index += 1;
                 Some(inner)
             } else {
+                self.outer_index += 1;
                 None
             }
         } else {
@@ -132,9 +134,11 @@ mod tests {
             list: ListsList { entry: lists_vec },
         });
         let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(&e1));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(&e2));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(&e3));
-        assert_eq!(value.lock().unwrap().iter().next(), None);
+        let list_struct = value.lock().unwrap();
+        let mut iter = list_struct.iter();
+        assert_eq!(iter.next(), Some(&e1));
+        assert_eq!(iter.next(), Some(&e2));
+        assert_eq!(iter.next(), Some(&e3));
+        assert_eq!(iter.next(), None);
     }
 }

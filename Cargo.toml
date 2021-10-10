@@ -1,5 +1,5 @@
 [package]
-name = "svn_list_parallel_rs"
+name = "svn-list-parallel-rs"
 version = "0.1.0"
 edition = "2018"
 

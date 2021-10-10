@@ -11,6 +11,37 @@ type AtomicList = Arc<Mutex<SvnListParallel>>;
 #[derive(Debug)]
 pub struct SvnListParallel(LinkedList<SvnList>);
 
+impl SvnListParallel {
+    pub fn iter(&self) -> ListEntryIterator {
+        ListEntryIterator {
+            data: &self,
+            outer_index: 0,
+            inner_index: 0,
+        }
+    }
+}
+
+pub struct ListEntryIterator<'a> {
+    data: &'a SvnListParallel,
+    outer_index: usize,
+    inner_index: usize,
+}
+
+impl<'a> Iterator for ListEntryIterator<'a> {
+    type Item = &'a ListEntry;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
+            if let Some(inner) = outer.iter().nth(self.inner_index) {
+                Some(inner)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 pub trait ListParallel {
     fn list_parallel(&self, path: &str) -> Arc<Mutex<SvnListParallel>>;
 }

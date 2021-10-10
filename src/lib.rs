@@ -4,7 +4,7 @@ use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
 };
-use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList, ListsList, EntryCommit};
+use svn_cmd::{EntryCommit, ListEntry, ListsList, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
@@ -93,39 +93,47 @@ mod tests {
     #[test]
     fn test_iter() {
         let mut lists_vec = VecDeque::new();
-        lists_vec.push_back(ListEntry {
+        let e1 = ListEntry {
             kind: PathType::Dir,
             name: "first".to_owned(),
             size: None,
             commit: EntryCommit {
                 revision: 100,
                 author: "Lemon".to_owned(),
-                date: "20/10/2001".to_owned()
-            }
-        });
-        lists_vec.push_back(ListEntry {
+                date: "20/10/2001".to_owned(),
+            },
+        };
+        let e2 = ListEntry {
             kind: PathType::File,
             name: "second".to_owned(),
             size: None,
             commit: EntryCommit {
                 revision: 101,
                 author: "Lemon".to_owned(),
-                date: "20/10/2001".to_owned()
-            }
-        });
-        lists_vec.push_back(ListEntry {
+                date: "20/10/2001".to_owned(),
+            },
+        };
+        let e3 = ListEntry {
             kind: PathType::Dir,
             name: "third".to_owned(),
             size: None,
             commit: EntryCommit {
                 revision: 102,
                 author: "Lemon".to_owned(),
-                date: "20/10/2001".to_owned()
-            }
-        });
+                date: "20/10/2001".to_owned(),
+            },
+        };
+        lists_vec.push_back(e1);
+        lists_vec.push_back(e2);
+        lists_vec.push_back(e3);
         let list = LinkedList::new();
-        list.push_back(SvnList { list: ListsList { entry: lists_vec } });
+        list.push_back(SvnList {
+            list: ListsList { entry: lists_vec },
+        });
         let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
-        value.lock().
-
+        assert_eq!(value.lock().unwrap().iter().next(), Some(e1));
+        assert_eq!(value.lock().unwrap().iter().next(), Some(e2));
+        assert_eq!(value.lock().unwrap().iter().next(), Some(e3));
+        assert_eq!(value.lock().unwrap().iter().next(), None);
+    }
 }

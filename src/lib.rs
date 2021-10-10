@@ -64,6 +64,7 @@ impl ListParallel for SvnCmd {
 
 #[async_recursion]
 async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Result<(), SvnError> {
+    trace!("Getting list for path: {}", &path);
     let svn_list = cmd.list(&path, false).await?;
     trace!("{:?}", svn_list);
     let mut tasks = Vec::new();

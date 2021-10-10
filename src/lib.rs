@@ -4,7 +4,7 @@ use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
 };
-use svn_cmd::{EntryCommit, ListEntry, ListsList, PathType, SvnCmd, SvnError, SvnList};
+use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
@@ -89,6 +89,7 @@ async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Resul
 mod tests {
     use super::*;
     use std::collections::VecDeque;
+    use svn_cmd::{EntryCommit, ListsList};
 
     #[test]
     fn test_iter() {
@@ -123,17 +124,17 @@ mod tests {
                 date: "20/10/2001".to_owned(),
             },
         };
-        lists_vec.push_back(e1);
-        lists_vec.push_back(e2);
-        lists_vec.push_back(e3);
-        let list = LinkedList::new();
+        lists_vec.push_back(e1.clone());
+        lists_vec.push_back(e2.clone());
+        lists_vec.push_back(e3.clone());
+        let mut list = LinkedList::new();
         list.push_back(SvnList {
             list: ListsList { entry: lists_vec },
         });
         let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(e1));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(e2));
-        assert_eq!(value.lock().unwrap().iter().next(), Some(e3));
+        assert_eq!(value.lock().unwrap().iter().next(), Some(&e1));
+        assert_eq!(value.lock().unwrap().iter().next(), Some(&e2));
+        assert_eq!(value.lock().unwrap().iter().next(), Some(&e3));
         assert_eq!(value.lock().unwrap().iter().next(), None);
     }
 }

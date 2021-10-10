@@ -4,7 +4,7 @@ use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
 };
-use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
+use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList, ListsList, EntryCommit};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
@@ -83,4 +83,49 @@ async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Resul
     }
     big_list.lock().unwrap().0.push_back(svn_list);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+
+    #[test]
+    fn test_iter() {
+        let mut lists_vec = VecDeque::new();
+        lists_vec.push_back(ListEntry {
+            kind: PathType::Dir,
+            name: "first".to_owned(),
+            size: None,
+            commit: EntryCommit {
+                revision: 100,
+                author: "Lemon".to_owned(),
+                date: "20/10/2001".to_owned()
+            }
+        });
+        lists_vec.push_back(ListEntry {
+            kind: PathType::File,
+            name: "second".to_owned(),
+            size: None,
+            commit: EntryCommit {
+                revision: 101,
+                author: "Lemon".to_owned(),
+                date: "20/10/2001".to_owned()
+            }
+        });
+        lists_vec.push_back(ListEntry {
+            kind: PathType::Dir,
+            name: "third".to_owned(),
+            size: None,
+            commit: EntryCommit {
+                revision: 102,
+                author: "Lemon".to_owned(),
+                date: "20/10/2001".to_owned()
+            }
+        });
+        let list = LinkedList::new();
+        list.push_back(SvnList { list: ListsList { entry: lists_vec } });
+        let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
+        value.lock().
+
 }

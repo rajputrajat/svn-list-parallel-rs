@@ -75,10 +75,10 @@ async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Resul
             }));
         }
     }
+    big_list.lock().unwrap().0.push_back(svn_list);
     for task in tasks {
         task.await?;
     }
-    big_list.lock().unwrap().0.push_back(svn_list);
     Ok(())
 }
 

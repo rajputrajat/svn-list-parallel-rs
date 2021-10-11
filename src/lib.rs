@@ -5,7 +5,7 @@ use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
 };
-use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
+use svn_cmd::{ListEntry, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
@@ -59,25 +59,22 @@ impl<'a> Iterator for ListEntryIterator<'a> {
     }
 }
 
+type ListEntryFilter = fn(&ListEntry) -> bool;
+
 pub trait ListParallel {
-    fn list_parallel<F: Send>(
+    fn list_parallel(
         &self,
         path: &str,
-        dir_entry_filter: F,
-    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>
-    where
-        F: Fn(ListEntry) -> bool;
+        dir_entry_filter: ListEntryFilter,
+    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>;
 }
 
 impl ListParallel for SvnCmd {
-    fn list_parallel<F: Send>(
+    fn list_parallel(
         &self,
         path: &str,
-        dir_entry_filter: F,
-    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>
-    where
-        F: Fn(ListEntry) -> bool,
-    {
+        dir_entry_filter: ListEntryFilter,
+    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError> {
         let all_svn_list = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
         let mut result: Result<(), SvnError> = Ok(());
         task::block_on(async {
@@ -94,22 +91,18 @@ impl ListParallel for SvnCmd {
 }
 
 #[async_recursion]
-async fn run_parallely<F: Send>(
+async fn run_parallely(
     cmd: SvnCmd,
     path: String,
     big_list: AtomicList,
-    dir_entry_filter: F,
-) -> Result<(), SvnError>
-where
-    F: Fn(ListEntry) -> bool,
-{
+    dir_entry_filter: ListEntryFilter,
+) -> Result<(), SvnError> {
     trace!("Getting list for path: {}", &path);
     let svn_list = cmd.list(&path, false).await?;
     trace!("{:?}", svn_list);
     let mut tasks = Vec::new();
     for item in svn_list.iter() {
-        if dir_entry_filter(item.clone()) {
-            //if item.kind == PathType::Dir {
+        if dir_entry_filter(item) {
             let path = path.clone();
             let new_path = format!("{}/{}", &path, item.name);
             let cmd = cmd.clone();
@@ -133,7 +126,7 @@ where
 mod tests {
     use super::*;
     use std::collections::VecDeque;
-    use svn_cmd::{EntryCommit, ListsList};
+    use svn_cmd::{EntryCommit, ListsList, PathType};
 
     #[test]
     fn test_iter() {

@@ -5,7 +5,7 @@ use std::{
     collections::LinkedList,
     sync::{Arc, Mutex},
 };
-use svn_cmd::{ListEntry, SvnCmd, SvnError, SvnList};
+use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
@@ -103,12 +103,14 @@ async fn run_parallely(
     let mut tasks = Vec::new();
     for item in svn_list.iter() {
         let new_path = format!("{}/{}", &path, item.name);
-        if dir_entry_filter(&new_path, item) {
-            let cmd = cmd.clone();
-            let big_list = big_list.clone();
-            tasks.push(task::spawn(async move {
-                run_parallely(cmd, new_path, big_list, dir_entry_filter).await
-            }));
+        if item.kind == PathType::Dir {
+            if dir_entry_filter(&new_path, item) {
+                let cmd = cmd.clone();
+                let big_list = big_list.clone();
+                tasks.push(task::spawn(async move {
+                    run_parallely(cmd, new_path, big_list, dir_entry_filter).await
+                }));
+            }
         }
     }
     for task in tasks {
@@ -125,7 +127,7 @@ async fn run_parallely(
 mod tests {
     use super::*;
     use std::collections::VecDeque;
-    use svn_cmd::{EntryCommit, ListsList, PathType};
+    use svn_cmd::{EntryCommit, ListsList};
 
     #[test]
     fn test_iter() {

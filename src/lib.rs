@@ -38,7 +38,7 @@ pub struct ListEntryIterator<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ListEntryIteratorItem<'a>(SvnPath<'a>, &'a ListEntry);
+pub struct ListEntryIteratorItem<'a>(pub SvnPath<'a>, pub &'a ListEntry);
 
 impl<'a> Iterator for ListEntryIterator<'a> {
     type Item = ListEntryIteratorItem<'a>;

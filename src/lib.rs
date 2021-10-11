@@ -9,7 +9,7 @@ use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SvnPath<'a>(&'a str);
 
 #[derive(Debug)]
@@ -37,14 +37,17 @@ pub struct ListEntryIterator<'a> {
     inner_index: usize,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ListEntryIteratorItem<'a>(SvnPath<'a>, &'a ListEntry);
+
 impl<'a> Iterator for ListEntryIterator<'a> {
-    type Item = (SvnPath<'a>, &'a ListEntry);
+    type Item = ListEntryIteratorItem<'a>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
                 if let Some(inner) = outer.list.iter().nth(self.inner_index) {
                     self.inner_index += 1;
-                    return Some((SvnPath(&outer.path), inner));
+                    return Some(ListEntryIteratorItem(SvnPath(&outer.path), inner));
                 } else {
                     self.outer_index += 1;
                     self.inner_index = 0;
@@ -162,5 +165,6 @@ mod tests {
         assert_eq!(iter.next().unwrap().1, &e1);
         assert_eq!(iter.next().unwrap().1, &e2);
         assert_eq!(iter.next().unwrap().1, &e3);
+        assert_eq!(iter.next(), None);
     }
 }

@@ -10,7 +10,7 @@ use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
 #[derive(Debug, PartialEq)]
-pub struct SvnPath<'a>(&'a str);
+pub struct SvnPath<'a>(pub &'a str);
 
 #[derive(Debug)]
 pub struct SvnListWithPath {

@@ -60,34 +60,62 @@ impl<'a> Iterator for ListEntryIterator<'a> {
 }
 
 pub trait ListParallel {
-    fn list_parallel(&self, path: &str) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>;
+    fn list_parallel<F: Send>(
+        &self,
+        path: &str,
+        dir_entry_filter: F,
+    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>
+    where
+        F: Fn(ListEntry) -> bool;
 }
 
 impl ListParallel for SvnCmd {
-    fn list_parallel(&self, path: &str) -> Result<Arc<Mutex<SvnListParallel>>, SvnError> {
+    fn list_parallel<F: Send>(
+        &self,
+        path: &str,
+        dir_entry_filter: F,
+    ) -> Result<Arc<Mutex<SvnListParallel>>, SvnError>
+    where
+        F: Fn(ListEntry) -> bool,
+    {
         let all_svn_list = Arc::new(Mutex::new(SvnListParallel(LinkedList::new())));
         let mut result: Result<(), SvnError> = Ok(());
         task::block_on(async {
-            result = run_parallely(self.clone(), path.to_owned(), all_svn_list.clone()).await;
+            result = run_parallely(
+                self.clone(),
+                path.to_owned(),
+                all_svn_list.clone(),
+                dir_entry_filter,
+            )
+            .await;
         });
         result.map(|_| all_svn_list)
     }
 }
 
 #[async_recursion]
-async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Result<(), SvnError> {
+async fn run_parallely<F: Send>(
+    cmd: SvnCmd,
+    path: String,
+    big_list: AtomicList,
+    dir_entry_filter: F,
+) -> Result<(), SvnError>
+where
+    F: Fn(ListEntry) -> bool,
+{
     trace!("Getting list for path: {}", &path);
     let svn_list = cmd.list(&path, false).await?;
     trace!("{:?}", svn_list);
     let mut tasks = Vec::new();
     for item in svn_list.iter() {
-        if item.kind == PathType::Dir {
+        if dir_entry_filter(item.clone()) {
+            //if item.kind == PathType::Dir {
             let path = path.clone();
             let new_path = format!("{}/{}", &path, item.name);
             let cmd = cmd.clone();
             let big_list = big_list.clone();
             tasks.push(task::spawn(async move {
-                run_parallely(cmd, new_path, big_list).await
+                run_parallely(cmd, new_path, big_list, dir_entry_filter).await
             }));
         }
     }

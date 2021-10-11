@@ -10,7 +10,16 @@ use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 type AtomicList = Arc<Mutex<SvnListParallel>>;
 
 #[derive(Debug)]
-pub struct SvnListParallel(LinkedList<SvnList>);
+pub struct SvnPath<'a>(&'a str);
+
+#[derive(Debug)]
+pub struct SvnListWithPath {
+    path: String,
+    list: SvnList,
+}
+
+#[derive(Debug)]
+pub struct SvnListParallel(LinkedList<SvnListWithPath>);
 
 impl SvnListParallel {
     pub fn iter(&self) -> ListEntryIterator {
@@ -29,13 +38,13 @@ pub struct ListEntryIterator<'a> {
 }
 
 impl<'a> Iterator for ListEntryIterator<'a> {
-    type Item = &'a ListEntry;
+    type Item = (SvnPath<'a>, &'a ListEntry);
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(outer) = self.data.0.iter().nth(self.outer_index) {
-                if let Some(inner) = outer.iter().nth(self.inner_index) {
+                if let Some(inner) = outer.list.iter().nth(self.inner_index) {
                     self.inner_index += 1;
-                    return Some(inner);
+                    return Some((SvnPath(&outer.path), inner));
                 } else {
                     self.outer_index += 1;
                     self.inner_index = 0;
@@ -82,7 +91,10 @@ async fn run_parallely(cmd: SvnCmd, path: String, big_list: AtomicList) -> Resul
     for task in tasks {
         task.await.unwrap_or(());
     }
-    big_list.lock().unwrap().0.push_back(svn_list);
+    big_list.lock().unwrap().0.push_back(SvnListWithPath {
+        path,
+        list: svn_list,
+    });
     Ok(())
 }
 
@@ -94,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let mut lists_vec = VecDeque::new();
+        let svn_path = "/hey/how/are/you";
         let e1 = ListEntry {
             kind: PathType::Dir,
             name: "first".to_owned(),
@@ -125,19 +137,30 @@ mod tests {
                 date: "20/10/2001".to_owned(),
             },
         };
-        lists_vec.push_back(e1.clone());
-        lists_vec.push_back(e2.clone());
-        lists_vec.push_back(e3.clone());
+        let v1 = SvnListWithPath {
+            path: svn_path.to_owned(),
+            list: SvnList {
+                list: ListsList {
+                    entry: VecDeque::from(vec![e1.clone(), e2.clone()]),
+                },
+            },
+        };
+        let v2 = SvnListWithPath {
+            path: svn_path.to_owned(),
+            list: SvnList {
+                list: ListsList {
+                    entry: VecDeque::from(vec![e3.clone()]),
+                },
+            },
+        };
         let mut list = LinkedList::new();
-        list.push_back(SvnList {
-            list: ListsList { entry: lists_vec },
-        });
+        list.push_back(v1);
+        list.push_back(v2);
         let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
         let list_struct = value.lock().unwrap();
         let mut iter = list_struct.iter();
-        assert_eq!(iter.next(), Some(&e1));
-        assert_eq!(iter.next(), Some(&e2));
-        assert_eq!(iter.next(), Some(&e3));
-        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next().unwrap().1, &e1);
+        assert_eq!(iter.next().unwrap().1, &e2);
+        assert_eq!(iter.next().unwrap().1, &e3);
     }
 }

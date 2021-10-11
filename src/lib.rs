@@ -59,7 +59,7 @@ impl<'a> Iterator for ListEntryIterator<'a> {
     }
 }
 
-type ListEntryFilter = fn(&ListEntry) -> bool;
+type ListEntryFilter = fn(&str, &ListEntry) -> bool;
 
 pub trait ListParallel {
     fn list_parallel(
@@ -102,9 +102,8 @@ async fn run_parallely(
     trace!("{:?}", svn_list);
     let mut tasks = Vec::new();
     for item in svn_list.iter() {
-        if dir_entry_filter(item) {
-            let path = path.clone();
-            let new_path = format!("{}/{}", &path, item.name);
+        let new_path = format!("{}/{}", &path, item.name);
+        if dir_entry_filter(&new_path, item) {
             let cmd = cmd.clone();
             let big_list = big_list.clone();
             tasks.push(task::spawn(async move {

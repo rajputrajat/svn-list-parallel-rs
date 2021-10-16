@@ -1,11 +1,11 @@
 use anyhow::Result as AnyResult;
 use async_recursion::async_recursion;
-use async_std::task;
-use log::trace;
-use std::{
-    collections::LinkedList,
+use async_std::{
     sync::{Arc, Mutex},
+    task,
 };
+use log::trace;
+use std::collections::LinkedList;
 use svn_cmd::{ListEntry, PathType, SvnCmd, SvnError, SvnList};
 
 type AtomicList = Arc<Mutex<SvnListParallel>>;
@@ -117,7 +117,7 @@ async fn run_parallely(
     for task in tasks {
         task.await.unwrap_or(());
     }
-    big_list.lock().unwrap().0.push_back(SvnListWithPath {
+    big_list.lock().await.0.push_back(SvnListWithPath {
         path,
         list: svn_list,
     });
@@ -130,8 +130,8 @@ mod tests {
     use std::collections::VecDeque;
     use svn_cmd::{EntryCommit, ListsList};
 
-    #[test]
-    fn test_iter() {
+    #[async_std::test]
+    async fn test_iter() {
         let svn_path = "/hey/how/are/you";
         let e1 = ListEntry {
             kind: PathType::Dir,
@@ -183,7 +183,7 @@ mod tests {
         list.push_back(v1);
         list.push_back(v2);
         let value: AtomicList = Arc::new(Mutex::new(SvnListParallel(list)));
-        let list_struct = value.lock().unwrap();
+        let list_struct = value.lock().await;
         let mut iter = list_struct.iter();
         assert_eq!(iter.next().unwrap().1, &e1);
         assert_eq!(iter.next().unwrap().1, &e2);

@@ -1,3 +1,4 @@
+use anyhow::Result as AnyResult;
 use async_recursion::async_recursion;
 use async_std::task;
 use log::trace;
@@ -59,7 +60,7 @@ impl<'a> Iterator for ListEntryIterator<'a> {
     }
 }
 
-type ListEntryFilter = fn(&str, &ListEntry) -> bool;
+type ListEntryFilter = fn(&str, &ListEntry) -> AnyResult<bool>;
 
 pub trait ListParallel {
     fn list_parallel(
@@ -104,7 +105,7 @@ async fn run_parallely(
     for item in svn_list.iter() {
         let new_path = format!("{}/{}", &path, item.name);
         if item.kind == PathType::Dir {
-            if dir_entry_filter(&new_path, item) {
+            if dir_entry_filter(&new_path, item).map_err(|e| SvnError::Other(format!("{:?}", e)))? {
                 let cmd = cmd.clone();
                 let big_list = big_list.clone();
                 tasks.push(task::spawn(async move {
